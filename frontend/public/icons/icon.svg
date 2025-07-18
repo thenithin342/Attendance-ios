@@ -1,0 +1,19 @@
+<!-- Simple SVG icon for IIITDM AttendanceSync -->
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <!-- Background circle -->
+  <circle cx="96" cy="96" r="96" fill="#1E3A8A"/>
+  
+  <!-- Graduation cap -->
+  <path d="M96 60 L140 75 L96 90 L52 75 Z" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2"/>
+  <path d="M96 90 L96 110 L88 115 L88 95 Z" fill="#FFFFFF"/>
+  
+  <!-- Security shield -->
+  <path d="M96 105 L85 100 L85 125 C85 130 90 135 96 135 C102 135 107 130 107 125 L107 100 Z" fill="#10B981" stroke="#FFFFFF" stroke-width="2"/>
+  
+  <!-- Checkmark in shield -->
+  <path d="M90 120 L95 125 L102 115" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Institution text -->
+  <text x="96" y="155" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#FFFFFF">IIITDM</text>
+  <text x="96" y="170" font-family="Arial, sans-serif" font-size="8" text-anchor="middle" fill="#E5E7EB">AttendanceSync</text>
+</svg>

@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from passlib.context import CryptContext
 
 # Load environment variables
-ROOT_DIR = Path(__file__).parent.parent
+ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # Database connection

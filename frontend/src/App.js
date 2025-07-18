@@ -2,7 +2,9 @@ import React, { useEffect, useState } from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./components/Login";
+import Register from "./components/Register";
 import Home from "./components/Home";
+import AdminPanel from "./components/AdminPanel";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -43,9 +45,19 @@ function App() {
     }
   };
 
-  const ProtectedRoute = ({ children }) => {
-    const isLoggedIn = localStorage.getItem('isLoggedIn');
-    return isLoggedIn ? children : <Navigate to="/login" />;
+  const ProtectedRoute = ({ children, requiredRole = null }) => {
+    const token = localStorage.getItem('accessToken');
+    const userRole = localStorage.getItem('userRole');
+    
+    if (!token) {
+      return <Navigate to="/login" />;
+    }
+    
+    if (requiredRole && userRole !== requiredRole) {
+      return <Navigate to="/home" />;
+    }
+    
+    return children;
   };
 
   return (
@@ -81,11 +93,20 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route 
             path="/home" 
             element={
               <ProtectedRoute>
                 <Home />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute requiredRole="faculty">
+                <AdminPanel />
               </ProtectedRoute>
             } 
           />

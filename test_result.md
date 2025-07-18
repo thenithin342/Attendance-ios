@@ -238,6 +238,18 @@ frontend:
         agent: "main"
         comment: "Implemented facial recognition UI with mock face verification and attendance marking flow"
 
+  - task: "Bluetooth beacon detection"
+    implemented: true
+    working: true
+    file: "src/components/Home.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Successfully implemented Bluetooth device scanning with mock data showing nearby devices including OnePlus Buds, Infinix Audio, etc."
+
   - task: "Admin panel interface"
     implemented: true
     working: true

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
+
 const Home = () => {
   const [user, setUser] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -9,6 +12,8 @@ const Home = () => {
   const [nearbyDevices, setNearbyDevices] = useState([]);
   const [showDevices, setShowDevices] = useState(false);
   const [faceVerified, setFaceVerified] = useState(false);
+  const [attendanceWindows, setAttendanceWindows] = useState([]);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   // Mock data for demonstration
@@ -24,15 +29,21 @@ const Home = () => {
 
   useEffect(() => {
     // Check if user is logged in
-    const isLoggedIn = localStorage.getItem('isLoggedIn');
-    const userEmail = localStorage.getItem('userEmail');
+    const token = localStorage.getItem('accessToken');
+    const userData = localStorage.getItem('userData');
     
-    if (!isLoggedIn || !userEmail) {
+    if (!token || !userData) {
       navigate('/login');
       return;
     }
 
-    setUser({ email: userEmail });
+    const userObj = JSON.parse(userData);
+    setUser(userObj);
+    
+    // Fetch attendance windows for student
+    if (userObj.role === 'student') {
+      fetchAttendanceWindows();
+    }
 
     // Update time every second
     const timeInterval = setInterval(() => {
@@ -42,9 +53,33 @@ const Home = () => {
     return () => clearInterval(timeInterval);
   }, [navigate]);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('accessToken');
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+  };
+
+  const fetchAttendanceWindows = async () => {
+    try {
+      const response = await fetch(`${API}/student/attendance-windows`, {
+        headers: getAuthHeaders()
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAttendanceWindows(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch attendance windows:', err);
+    }
+  };
+
   const handleLogout = () => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userEmail');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userData');
     navigate('/login');
   };
 
@@ -56,23 +91,59 @@ const Home = () => {
       await new Promise(resolve => setTimeout(resolve, 2000));
       setFaceVerified(true);
       
-      // Simulate attendance marking
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setAttendanceStatus('Marked Successfully');
+      // Check if there are active attendance windows
+      if (attendanceWindows.length === 0) {
+        setAttendanceStatus('No Active Session');
+        setError('No attendance windows are currently active');
+        setTimeout(() => {
+          setAttendanceStatus('Ready');
+          setFaceVerified(false);
+        }, 3000);
+        return;
+      }
+      
+      // Use the first active window for demo
+      const window = attendanceWindows[0];
+      
+      // Mock attendance marking
+      const response = await fetch(`${API}/student/mark-attendance`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          hall_id: window.hall_id,
+          attendance_window_id: window.id,
+          verification_method: 'face_recognition',
+          beacon_rssi: -45,
+          face_confidence: 0.95
+        })
+      });
+      
+      if (response.ok) {
+        setAttendanceStatus('Marked Successfully');
+      } else {
+        const errorData = await response.json();
+        setAttendanceStatus('Error - Try Again');
+        setError(errorData.detail || 'Failed to mark attendance');
+      }
       
       // Reset after 3 seconds
       setTimeout(() => {
         setAttendanceStatus('Ready');
         setFaceVerified(false);
+        setError('');
       }, 3000);
     } catch (error) {
       setAttendanceStatus('Error - Try Again');
-      setTimeout(() => setAttendanceStatus('Ready'), 3000);
+      setError('Network error occurred');
+      setTimeout(() => {
+        setAttendanceStatus('Ready');
+        setFaceVerified(false);
+        setError('');
+      }, 3000);
     }
   };
 
   const handleBiometricRegistration = () => {
-    // TODO: Implement biometric registration
     alert('Biometric registration will be implemented with face recognition API');
   };
 
@@ -84,6 +155,10 @@ const Home = () => {
     } else {
       setShowDevices(!showDevices);
     }
+  };
+
+  const handleAdminPanel = () => {
+    navigate('/admin');
   };
 
   const formatTime = (date) => {
@@ -106,7 +181,7 @@ const Home = () => {
     if (user?.email) {
       return user.email.split('@')[0];
     }
-    return 'cs23i1001';
+    return 'user';
   };
 
   if (!user) {
@@ -129,16 +204,34 @@ const Home = () => {
               </div>
               <div>
                 <h1 className="text-lg font-semibold text-gray-900">IIITDM AttendanceSync</h1>
+                <p className="text-xs text-gray-600">
+                  {user.role === 'faculty' ? 'Faculty' : 'Student'} | {user.batch || user.department}
+                </p>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-            </button>
+            <div className="flex items-center space-x-2">
+              {user.role === 'faculty' && (
+                <button
+                  onClick={handleAdminPanel}
+                  className="p-2 text-gray-500 hover:text-blue-600 rounded-lg hover:bg-blue-50"
+                  title="Admin Panel"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-50"
+                title="Logout"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -148,15 +241,23 @@ const Home = () => {
         {/* Welcome Section */}
         <div className="bg-white rounded-2xl shadow-sm p-6">
           <h2 className="text-2xl font-bold text-blue-600 mb-2">
-            {getGreeting()} {getUserId()}
+            {getGreeting()} {user.full_name}
           </h2>
           <div className="text-center mt-4">
             <div className="text-4xl font-bold text-gray-900 mb-2">
-              {formatTime(currentTime)} am
+              {formatTime(currentTime)}
             </div>
-            <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium inline-block">
-              [DEBUG] Attendance Window (for testing)
-            </div>
+            
+            {/* Attendance Window Status */}
+            {attendanceWindows.length > 0 ? (
+              <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium inline-block">
+                Attendance Window Active
+              </div>
+            ) : (
+              <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium inline-block">
+                No Active Windows
+              </div>
+            )}
           </div>
         </div>
 
@@ -255,16 +356,21 @@ const Home = () => {
           )}
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
+
         {/* Debug Info */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
           <div className="font-medium text-yellow-800 mb-2">Debug Information:</div>
           <div className="space-y-1 text-yellow-700">
-            <div>isActive (DB): null</div>
-            <div>start_time (IST): null</div>
-            <div>end_time (IST): null</div>
-            <div>serverNow (UTC): {currentTime.toISOString()}</div>
-            <div>now (IST): {currentTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</div>
-            <div>Computed isActive (button enabled): false</div>
+            <div>User Role: {user.role}</div>
+            <div>Batch/Department: {user.batch || user.department}</div>
+            <div>Active Windows: {attendanceWindows.length}</div>
+            <div>Current Time: {currentTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</div>
           </div>
         </div>
       </div>
